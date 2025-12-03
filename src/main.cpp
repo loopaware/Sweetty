@@ -300,6 +300,19 @@ protected:
     void resizeGL(int w, int h) override
     {
         glViewport(0, 0, w, h);
+
+        if (terminalBuffer) {
+            // Recalculate terminal dimensions based on new widget size
+            int charWidth = (ft_face->glyph->advance.x >> 6);
+            int charHeight = ft_face->size->metrics.height >> 6;
+            if (charWidth == 0) charWidth = 1;
+            if (charHeight == 0) charHeight = 1;
+
+            int newCols = w / charWidth;
+            int newRows = h / charHeight;
+
+            terminalBuffer->resize(newCols, newRows);
+        }
     }
 
     void paintGL() override
