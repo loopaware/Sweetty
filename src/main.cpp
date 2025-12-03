@@ -13,6 +13,7 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #include "terminal_buffer.h" // Include TerminalBuffer header
+#include <QKeyEvent> // Include QKeyEvent
 
 struct Character {
     GLuint     textureID;  // ID handle of the glyph texture
@@ -410,6 +411,8 @@ private:
     GLuint shaderProgram;
     GLuint VAO, VBO;
     TerminalBuffer* terminalBuffer; // Member for TerminalBuffer
+}; // Missing closing brace for TerminalWidget class
+
 
 int main(int argc, char *argv[])
 {
