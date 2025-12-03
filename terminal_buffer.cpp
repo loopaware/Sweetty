@@ -55,3 +55,35 @@ void TerminalBuffer::scrollUp() {
     // Clear the last row
     buffer_[height_ - 1] = std::vector<TerminalChar>(width_, {' '});
 }
+
+void TerminalBuffer::resize(int newWidth, int newHeight) {
+    if (newWidth <= 0 || newHeight <= 0) {
+        std::cerr << "Error: Attempted to resize TerminalBuffer to invalid dimensions: " << newWidth << "x" << newHeight << std::endl;
+        return;
+    }
+
+    std::vector<std::vector<TerminalChar>> newBuffer(newHeight, std::vector<TerminalChar>(newWidth, {' '}));
+
+    // Copy existing content to the new buffer
+    int copyRows = std::min(height_, newHeight);
+    int copyCols = std::min(width_, newWidth);
+
+    for (int r = 0; r < copyRows; ++r) {
+        for (int c = 0; c < copyCols; ++c) {
+            newBuffer[r][c] = buffer_[r][c];
+        }
+    }
+
+    buffer_ = std::move(newBuffer);
+    width_ = newWidth;
+    height_ = newHeight;
+
+    // Adjust cursor position to be within new bounds
+    if (cursorRow_ >= newHeight) {
+        cursorRow_ = newHeight - 1;
+    }
+    if (cursorCol_ >= newWidth) {
+        cursorCol_ = newWidth - 1;
+    }
+}
+

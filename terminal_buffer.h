@@ -31,6 +31,8 @@ public:
     int getCursorCol() const { return cursorCol_; }
     const std::vector<std::vector<TerminalChar>>& getBuffer() const { return buffer_; }
 
+    void resize(int width, int height);
+
 private:
     void scrollUp();
 
