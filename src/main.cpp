@@ -5,10 +5,13 @@
 #include <QTimer>
 #include <iostream>
 
+#include <ft2build.h>
+#include FT_FREETYPE_H
+
 class TerminalWidget : public QOpenGLWidget, protected QOpenGLFunctions_3_0
 {
 public:
-    TerminalWidget(QWidget *parent = nullptr) : QOpenGLWidget(parent)
+    TerminalWidget(QWidget *parent = nullptr) : QOpenGLWidget(parent), ft_library(nullptr), ft_face(nullptr)
     {
         // Request OpenGL ES 3.0 context
         QSurfaceFormat format;
@@ -21,6 +24,16 @@ public:
         QTimer *timer = new QTimer(this);
         connect(timer, &QTimer::timeout, this, QOverload<>::of(&TerminalWidget::update));
         timer->start(16); // Approximately 60 FPS
+    }
+
+    ~TerminalWidget()
+    {
+        if (ft_face) {
+            FT_Done_Face(ft_face);
+        }
+        if (ft_library) {
+            FT_Done_FreeType(ft_library);
+        }
     }
 
 protected:
@@ -40,6 +53,32 @@ protected:
         std::cout << "GLSL Version: " << (const char*)glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
 
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f); // Set background color
+
+        // --- FreeType Initialization ---
+        FT_Error error = FT_Init_FreeType(&ft_library);
+        if (error) {
+            std::cerr << "FreeType: Could not init FreeType Library" << std::endl;
+            return;
+        }
+
+        // TODO: Make font path configurable
+        const char* font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf";
+        error = FT_New_Face(ft_library, font_path, 0, &ft_face);
+        if (error == FT_Err_Unknown_File_Format) {
+            std::cerr << "FreeType: The font file could be opened and read, but it appears that its font format is unsupported." << std::endl;
+            return;
+        } else if (error) {
+            std::cerr << "FreeType: Could not open/read font file: " << font_path << std::endl;
+            return;
+        }
+
+        // Set font size to 48 pixels, 0 for horizontal resolution uses device resolution
+        error = FT_Set_Pixel_Sizes(ft_face, 0, 48);
+        if (error) {
+            std::cerr << "FreeType: Could not set font pixel size." << std::endl;
+            return;
+        }
+        std::cout << "FreeType initialized and font loaded: " << font_path << std::endl;
     }
 
     void resizeGL(int w, int h) override
@@ -52,6 +91,10 @@ protected:
         glClear(GL_COLOR_BUFFER_BIT); // Clear the color buffer
         // Rendering commands will go here
     }
+
+private:
+    FT_Library ft_library;
+    FT_Face ft_face;
 };
 
 int main(int argc, char *argv[])
