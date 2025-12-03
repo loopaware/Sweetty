@@ -5,6 +5,8 @@
 #include <QTimer>
 #include <iostream>
 #include <map>
+#include <fstream>
+#include <sstream>
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -19,7 +21,7 @@ struct Character {
 class TerminalWidget : public QOpenGLWidget, protected QOpenGLFunctions_3_0
 {
 public:
-    TerminalWidget(QWidget *parent = nullptr) : QOpenGLWidget(parent), ft_library(nullptr), ft_face(nullptr), fontAtlasTexture(0)
+    TerminalWidget(QWidget *parent = nullptr) : QOpenGLWidget(parent), ft_library(nullptr), ft_face(nullptr), fontAtlasTexture(0), shaderProgram(0), VAO(0), VBO(0)
     {
         // Request OpenGL ES 3.0 context
         QSurfaceFormat format;
@@ -45,9 +47,85 @@ public:
         if (ft_library) {
             FT_Done_FreeType(ft_library);
         }
+        if (shaderProgram) {
+            glDeleteProgram(shaderProgram);
+        }
+        if (VAO) {
+            glDeleteVertexArrays(1, &VAO);
+        }
+        if (VBO) {
+            glDeleteBuffers(1, &VBO);
+        }
     }
 
 protected:
+    GLuint compileShader(GLenum type, const char* path)
+    {
+        std::string shaderCode;
+        std::ifstream shaderFile;
+        shaderFile.exceptions (std::ifstream::failbit | std::ifstream::badbit);
+        try
+        {
+            shaderFile.open(path);
+            std::stringstream shaderStream;
+            shaderStream << shaderFile.rdbuf();
+            shaderFile.close();
+            shaderCode = shaderStream.str();
+        }
+        catch (std::ifstream::failure& e)
+        {
+            std::cerr << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ: " << path << " " << e.what() << std::endl;
+            return 0;
+        }
+        const char* sCode = shaderCode.c_str();
+
+        GLuint shader = glCreateShader(type);
+        glShaderSource(shader, 1, &sCode, NULL);
+        glCompileShader(shader);
+
+        GLint success;
+        GLchar infoLog[512];
+        glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+        if (!success)
+        {
+            glGetShaderInfoLog(shader, 512, NULL, infoLog);
+            std::cerr << "ERROR::SHADER::COMPILATION_FAILED of " << path << "\n" << infoLog << std::endl;
+            return 0;
+        }
+        return shader;
+    }
+
+    GLuint createShaderProgram(const char* vertexPath, const char* fragmentPath)
+    {
+        GLuint vertex = compileShader(GL_VERTEX_SHADER, vertexPath);
+        GLuint fragment = compileShader(GL_FRAGMENT_SHADER, fragmentPath);
+
+        if (vertex == 0 || fragment == 0) {
+            return 0;
+        }
+
+        GLuint program = glCreateProgram();
+        glAttachShader(program, vertex);
+        glAttachShader(program, fragment);
+        glLinkProgram(program);
+
+        GLint success;
+        GLchar infoLog[512];
+        glGetProgramiv(program, GL_LINK_STATUS, &success);
+        if (!success) {
+            glGetProgramInfoLog(program, 512, NULL, infoLog);
+            std::cerr << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
+            glDeleteShader(vertex);
+            glDeleteShader(fragment);
+            return 0;
+        }
+
+        glDeleteShader(vertex);
+        glDeleteShader(fragment);
+        return program;
+    }
+
+
     void initializeGL() override
     {
         initializeOpenGLFunctions(); // Initialize OpenGL functions for ES 3.0
@@ -170,6 +248,26 @@ protected:
         }
 
         std::cout << "Glyph Texture Atlas generated for ASCII characters." << std::endl;
+
+        // --- Shader Program Setup ---
+        shaderProgram = createShaderProgram("shaders/text.vert", "shaders/text.frag");
+        if (shaderProgram == 0) {
+            std::cerr << "Failed to create shader program!" << std::endl;
+            return;
+        }
+
+        glUseProgram(shaderProgram);
+        glUniform1i(glGetUniformLocation(shaderProgram, "text"), 0); // Set texture sampler to unit 0
+
+        glGenVertexArrays(1, &VAO);
+        glGenBuffers(1, &VBO);
+        glBindVertexArray(VAO);
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindVertexArray(0);
     }
 
     void resizeGL(int w, int h) override
@@ -188,6 +286,9 @@ private:
     FT_Face ft_face;
     GLuint fontAtlasTexture;
     std::map<char, Character> Characters;
+
+    GLuint shaderProgram;
+    GLuint VAO, VBO;
 };
 
 int main(int argc, char *argv[])
