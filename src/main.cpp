@@ -278,63 +278,131 @@ protected:
         glViewport(0, 0, w, h);
     }
 
-    void paintGL() override
-    {
-        glClear(GL_COLOR_BUFFER_BIT); // Clear the color buffer
+        void paintGL() override
 
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        {
 
-        glUseProgram(shaderProgram);
-        glUniform3f(glGetUniformLocation(shaderProgram, "textColor"), 1.0f, 1.0f, 1.0f); // White color
+            glClear(GL_COLOR_BUFFER_BIT); // Clear the color buffer
 
-        // Setup orthographic projection matrix
-        glm::mat4 projection = glm::ortho(0.0f, static_cast<float>(width()), 0.0f, static_cast<float>(height()));
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, &projection[0][0]);
+    
 
-        glActiveTexture(GL_TEXTURE0);
-        glBindVertexArray(VAO);
+            glEnable(GL_BLEND);
 
-        float x = 50.0f; // Starting X position for character
-        float y = 50.0f; // Starting Y position from bottom-left
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+    
 
-        char char_to_render = 'A';
-        if (Characters.count(char_to_render)) {
-            Character ch = Characters[char_to_render];
+            glUseProgram(shaderProgram);
 
-            GLfloat xpos = x + ch.bearing.x();
-            GLfloat ypos = y - ch.size.height() + ch.bearing.y(); // Adjust ypos for baseline
+            glUniform3f(glGetUniformLocation(shaderProgram, "textColor"), 1.0f, 1.0f, 1.0f); // White color
 
-            GLfloat w = ch.size.width();
-            GLfloat h = ch.size.height();
+    
 
-            // Update VBO for each character
-            GLfloat vertices[6][4] = {
-                { xpos,     ypos + h,   0.0f, 0.0f },
-                { xpos,     ypos,       0.0f, 1.0f },
-                { xpos + w, ypos,       1.0f, 1.0f },
+            // Setup orthographic projection matrix
 
-                { xpos,     ypos + h,   0.0f, 0.0f },
-                { xpos + w, ypos,       1.0f, 1.0f },
-                { xpos + w, ypos + h,   1.0f, 0.0f }
-            };
+            glm::mat4 projection = glm::ortho(0.0f, static_cast<float>(width()), 0.0f, static_cast<float>(height()));
 
-            // Render glyph texture over quad
-            glBindTexture(GL_TEXTURE_2D, ch.textureID);
-            // Update content of VBO memory
-            glBindBuffer(GL_ARRAY_BUFFER, VBO);
-            glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
-            // Render quad
-            glDrawArrays(GL_TRIANGLES, 0, 6);
+            glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, &projection[0][0]);
+
+    
+
+            glActiveTexture(GL_TEXTURE0);
+
+            glBindVertexArray(VAO);
+
+    
+
+            float x = 50.0f; // Starting X position for character
+
+            float y = 50.0f; // Starting Y position from bottom-left
+
+    
+
+            std::string text_to_render = "Hello, Sweetty GL!";
+
+    
+
+            for (char c : text_to_render)
+
+            {
+
+                if (Characters.count(c)) {
+
+                    Character ch = Characters[c];
+
+    
+
+                    GLfloat xpos = x + ch.bearing.x();
+
+                    GLfloat ypos = y - ch.size.height() + ch.bearing.y(); // Adjust ypos for baseline
+
+    
+
+                    GLfloat w = ch.size.width();
+
+                    GLfloat h = ch.size.height();
+
+    
+
+                    // Update VBO for each character
+
+                    GLfloat vertices[6][4] = {
+
+                        { xpos,     ypos + h,   0.0f, 0.0f },
+
+                        { xpos,     ypos,       0.0f, 1.0f },
+
+                        { xpos + w, ypos,       1.0f, 1.0f },
+
+    
+
+                        { xpos,     ypos + h,   0.0f, 0.0f },
+
+                        { xpos + w, ypos,       1.0f, 1.0f },
+
+                        { xpos + w, ypos + h,   1.0f, 0.0f }
+
+                    };
+
+    
+
+                    // Render glyph texture over quad
+
+                    glBindTexture(GL_TEXTURE_2D, ch.textureID);
+
+                    // Update content of VBO memory
+
+                    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+                    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+
+                    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+                    // Render quad
+
+                    glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    
+
+                    // Now advance cursors for next glyph (note that advance is number of 1/64 pixels)
+
+                    x += ch.advance;
+
+                }
+
+            }
+
+    
+
+            glDisable(GL_BLEND);
+
+            glBindVertexArray(0);
+
+            glBindTexture(GL_TEXTURE_2D, 0);
+
+            glUseProgram(0);
+
         }
-
-        glDisable(GL_BLEND);
-        glBindVertexArray(0);
-        glBindTexture(GL_TEXTURE_2D, 0);
-        glUseProgram(0);
-    }
 
 private:
     FT_Library ft_library;
