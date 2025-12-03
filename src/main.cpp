@@ -387,6 +387,20 @@ protected:
         glUseProgram(0);
     }
 
+protected: // Add keyPressEvent here
+    void keyPressEvent(QKeyEvent *event) override
+    {
+        if (event->text().length() > 0) { // Check if it's a printable character
+            char keyChar = event->text().at(0).toLatin1();
+            if (keyChar >= 32 && keyChar < 127) { // Only process basic ASCII printable characters for now
+                if (terminalBuffer) {
+                    terminalBuffer->write(keyChar);
+                    update(); // Request a repaint
+                }
+            }
+        }
+        QOpenGLWidget::keyPressEvent(event); // Call base class implementation
+    }
 private:
     FT_Library ft_library;
     FT_Face ft_face;
@@ -396,7 +410,6 @@ private:
     GLuint shaderProgram;
     GLuint VAO, VBO;
     TerminalBuffer* terminalBuffer; // Member for TerminalBuffer
-};
 
 int main(int argc, char *argv[])
 {
