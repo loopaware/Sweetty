@@ -53,16 +53,13 @@ FetchContent_MakeAvailable(glm_extern)
 
 find_package(Qt5 5.15 COMPONENTS Widgets OpenGL REQUIRED)
 
-add_library(TerminalBuffer STATIC terminal_buffer.cpp) # Create static library
-
-add_executable(sweetty-gl src/main.cpp)
+add_executable(sweetty-gl src/main.cpp terminal_buffer.cpp)
 
 target_link_libraries(sweetty-gl PRIVATE
     Qt5::Widgets
     Qt5::OpenGL
     freetype
     harfbuzz
-    TerminalBuffer # Link to the static library
 )
 
 if (ZLIB_FOUND)
