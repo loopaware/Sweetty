@@ -24,7 +24,7 @@ struct Character {
 class TerminalWidget : public QOpenGLWidget, protected QOpenGLFunctions_3_0
 {
 public:
-    TerminalWidget(QWidget *parent = nullptr) : QOpenGLWidget(parent), ft_library(nullptr), ft_face(nullptr), fontAtlasTexture(0), shaderProgram(0), VAO(0), VBO(0)
+    TerminalWidget(QWidget *parent = nullptr) : QOpenGLWidget(parent), ft_library(nullptr), ft_face(nullptr), fontAtlasTexture(0), shaderProgram(0), VAO(0), VBO(0), terminalBuffer(nullptr)
     {
         // Request OpenGL ES 3.0 context
         QSurfaceFormat format;
@@ -58,6 +58,9 @@ public:
         }
         if (VBO) {
             glDeleteBuffers(1, &VBO);
+        }
+        if (terminalBuffer) {
+            delete terminalBuffer;
         }
     }
 
@@ -351,6 +354,7 @@ private:
 
     GLuint shaderProgram;
     GLuint VAO, VBO;
+    TerminalBuffer* terminalBuffer; // Member for TerminalBuffer
 };
 
 int main(int argc, char *argv[])
