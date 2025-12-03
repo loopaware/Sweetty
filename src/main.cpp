@@ -12,6 +12,7 @@
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
+#include "terminal_buffer.h" // Include TerminalBuffer header
 
 struct Character {
     GLuint     textureID;  // ID handle of the glyph texture
@@ -23,7 +24,7 @@ struct Character {
 class TerminalWidget : public QOpenGLWidget, protected QOpenGLFunctions_3_0
 {
 public:
-    TerminalWidget(QWidget *parent = nullptr) : QOpenGLWidget(parent), ft_library(nullptr), ft_face(nullptr), fontAtlasTexture(0), shaderProgram(0), VAO(0), VBO(0)
+    TerminalWidget(QWidget *parent = nullptr) : QOpenGLWidget(parent), ft_library(nullptr), ft_face(nullptr), fontAtlasTexture(0), shaderProgram(0), VAO(0), VBO(0), terminalBuffer(nullptr)
     {
         // Request OpenGL ES 3.0 context
         QSurfaceFormat format;
@@ -57,6 +58,9 @@ public:
         }
         if (VBO) {
             glDeleteBuffers(1, &VBO);
+        }
+        if (terminalBuffer) {
+            delete terminalBuffer;
         }
     }
 
@@ -271,6 +275,26 @@ protected:
         glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glBindVertexArray(0);
+
+        // --- Terminal Buffer Setup ---
+        // Calculate terminal dimensions based on font metrics and widget size
+        // For simplicity, let's assume average character width and height
+        int charWidth = (ft_face->glyph->advance.x >> 6); // Average width for monospaced font
+        int charHeight = ft_face->size->metrics.height >> 6; // Average height including ascender/descender
+        if (charWidth == 0) charWidth = 1; // Avoid division by zero
+        if (charHeight == 0) charHeight = 1;
+
+        int cols = width() / charWidth;
+        int rows = height() / charHeight;
+
+        terminalBuffer = new TerminalBuffer(cols, rows);
+        terminalBuffer->write("Hello, Sweetty GL!");
+        terminalBuffer->newLine();
+        terminalBuffer->write("This is a terminal emulator.");
+        terminalBuffer->newLine();
+        terminalBuffer->write("It's GPU accelerated!");
+        terminalBuffer->newLine();
+        terminalBuffer->write("With FreeType and HarfBuzz.");
     }
 
     void resizeGL(int w, int h) override
@@ -278,131 +302,77 @@ protected:
         glViewport(0, 0, w, h);
     }
 
-        void paintGL() override
+    void paintGL() override
+    {
+        glClear(GL_COLOR_BUFFER_BIT); // Clear the color buffer
 
-        {
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-            glClear(GL_COLOR_BUFFER_BIT); // Clear the color buffer
+        glUseProgram(shaderProgram);
+        glUniform3f(glGetUniformLocation(shaderProgram, "textColor"), 1.0f, 1.0f, 1.0f); // White color
 
-    
+        // Setup orthographic projection matrix
+        glm::mat4 projection = glm::ortho(0.0f, static_cast<float>(width()), 0.0f, static_cast<float>(height()));
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, &projection[0][0]);
 
-            glEnable(GL_BLEND);
+        glActiveTexture(GL_TEXTURE0);
+        glBindVertexArray(VAO);
 
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        // Render characters from terminal buffer
+        // Position from top-left, rows are from top to bottom
+        float current_y = static_cast<float>(height()); 
+        float charHeight = ft_face->size->metrics.height >> 6;
 
-    
+        for (const auto& row : terminalBuffer->getBuffer()) {
+            float current_x = 0.0f;
+            current_y -= charHeight; // Move down by character height for each row
 
-            glUseProgram(shaderProgram);
-
-            glUniform3f(glGetUniformLocation(shaderProgram, "textColor"), 1.0f, 1.0f, 1.0f); // White color
-
-    
-
-            // Setup orthographic projection matrix
-
-            glm::mat4 projection = glm::ortho(0.0f, static_cast<float>(width()), 0.0f, static_cast<float>(height()));
-
-            glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, &projection[0][0]);
-
-    
-
-            glActiveTexture(GL_TEXTURE0);
-
-            glBindVertexArray(VAO);
-
-    
-
-            float x = 50.0f; // Starting X position for character
-
-            float y = 50.0f; // Starting Y position from bottom-left
-
-    
-
-            std::string text_to_render = "Hello, Sweetty GL!";
-
-    
-
-            for (char c : text_to_render)
-
-            {
-
+            for (const auto& termChar : row) {
+                char c = termChar.value;
                 if (Characters.count(c)) {
-
                     Character ch = Characters[c];
 
-    
-
-                    GLfloat xpos = x + ch.bearing.x();
-
-                    GLfloat ypos = y - ch.size.height() + ch.bearing.y(); // Adjust ypos for baseline
-
-    
+                    GLfloat xpos = current_x + ch.bearing.x();
+                    GLfloat ypos = current_y + ch.bearing.y(); 
 
                     GLfloat w = ch.size.width();
-
                     GLfloat h = ch.size.height();
 
-    
-
                     // Update VBO for each character
-
                     GLfloat vertices[6][4] = {
-
                         { xpos,     ypos + h,   0.0f, 0.0f },
-
                         { xpos,     ypos,       0.0f, 1.0f },
-
                         { xpos + w, ypos,       1.0f, 1.0f },
-
-    
 
                         { xpos,     ypos + h,   0.0f, 0.0f },
-
                         { xpos + w, ypos,       1.0f, 1.0f },
-
                         { xpos + w, ypos + h,   1.0f, 0.0f }
-
                     };
 
-    
-
                     // Render glyph texture over quad
-
                     glBindTexture(GL_TEXTURE_2D, ch.textureID);
-
                     // Update content of VBO memory
-
                     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-
                     glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
-
                     glBindBuffer(GL_ARRAY_BUFFER, 0);
-
                     // Render quad
-
                     glDrawArrays(GL_TRIANGLES, 0, 6);
 
-    
-
                     // Now advance cursors for next glyph (note that advance is number of 1/64 pixels)
-
-                    x += ch.advance;
-
+                    current_x += (ch.advance);
+                } else {
+                    // If character not in atlas, just advance by average width
+                    current_x += (ft_face->glyph->advance.x >> 6);
                 }
-
             }
-
-    
-
-            glDisable(GL_BLEND);
-
-            glBindVertexArray(0);
-
-            glBindTexture(GL_TEXTURE_2D, 0);
-
-            glUseProgram(0);
-
         }
+
+        glDisable(GL_BLEND);
+        glBindVertexArray(0);
+        glBindTexture(GL_TEXTURE_2D, 0);
+        glUseProgram(0);
+    }
 
 private:
     FT_Library ft_library;
@@ -412,23 +382,5 @@ private:
 
     GLuint shaderProgram;
     GLuint VAO, VBO;
+    TerminalBuffer* terminalBuffer; // Member for TerminalBuffer
 };
-
-int main(int argc, char *argv[])
-{
-    QApplication a(argc, argv);
-
-    // Request OpenGL ES 3.0 context for the whole application
-    QSurfaceFormat format;
-    format.setRenderableType(QSurfaceFormat::OpenGLES);
-    format.setVersion(3, 0);
-    format.setProfile(QSurfaceFormat::NoProfile);
-    QSurfaceFormat::setDefaultFormat(format);
-
-    TerminalWidget w;
-    w.setWindowTitle("Sweetty GL Terminal - Qt");
-    w.resize(800, 600);
-    w.show();
-
-    return a.exec();
-}
