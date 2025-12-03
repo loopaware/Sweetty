@@ -1,0 +1,125 @@
+# C++ Build Artifacts
+*.o
+*.obj
+*.ko
+*.lo
+*.la
+*.so
+*.a
+*.lib
+*.dll
+*.exe
+*.out
+*.app
+*.dSYM/
+*.map
+*.exp
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Intermediate files
+*.i
+*.s
+*.asm
+
+# Build directories
+[Bb]uild/
+[Dd]ebug/
+[Rr]elease/
+bin/
+obj/
+out/
+
+# IDE-specific files
+# Visual Studio
+.vs/
+*.VC.db
+*.VC.VC.opendb
+*.aps
+*.bsc
+*.ilk
+*.log
+*.mem
+*.pdb
+*.pgc
+*.pgd
+*.rsp
+*.sbr
+*.suo
+*.user
+*.userosscache
+*.ncb
+*.opensdf
+*.sdf
+*.cachefile
+*.psess
+*.vsp
+*.vspx
+*.sap
+*.tlog
+*.lastbuildstate
+*.ipch
+*.aps
+*.opensdf
+*.sdf
+*.cachefile
+*.VC.db
+*.VC.VC.opendb
+*.pidb
+*.svclog
+*.scc
+_UpgradeReport_Files/
+*.rcproj.user
+*.filters
+*.vcxproj.user
+*.vcxproj.filters
+
+# Code::Blocks
+*.layout
+*.depend
+*.cbp
+
+# Eclipse
+.project
+.cproject
+.settings/
+
+# Qt Creator
+*.pro.user
+*.user
+*.gcno
+*.gcda
+*.qbs.user
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+CTestTestfile.cmake
+Makefile
+*.cbp
+*.xcodeproj/
+*.dir/
+_CPack_Packages/
+
+# Miscellaneous
+*.swp
+*~
+*.bak
+*.tmp
+*.log
+*.orig
+*.rej
+*.swo
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
