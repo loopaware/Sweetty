@@ -60,7 +60,6 @@ target_link_libraries(sweetty-gl PRIVATE
     Qt5::OpenGL
     freetype
     harfbuzz
-    glm_extern # Link to GLM
 )
 
 if (ZLIB_FOUND)
@@ -68,3 +67,7 @@ if (ZLIB_FOUND)
 else()
     target_link_libraries(sweetty-gl PRIVATE zlib_extern)
 endif()
+
+target_include_directories(sweetty-gl PRIVATE
+    ${glm_extern_SOURCE_DIR}
+)
