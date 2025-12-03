@@ -319,44 +319,52 @@ protected:
         glActiveTexture(GL_TEXTURE0);
         glBindVertexArray(VAO);
 
-        float x = 50.0f; // Starting X position for character
-        float y = 50.0f; // Starting Y position from bottom-left
+        // Render characters from terminal buffer
+        // Position from top-left, rows are from top to bottom
+        float current_y = static_cast<float>(height()); 
+        float charHeight = ft_face->size->metrics.height >> 6;
 
-        std::string text_to_render = "Hello, Sweetty GL!";
+        for (const auto& row : terminalBuffer->getBuffer()) {
+            float current_x = 0.0f;
+            current_y -= charHeight; // Move down by character height for each row
 
-        for (char c : text_to_render)
-        {
-            if (Characters.count(c)) {
-                Character ch = Characters[c];
+            for (const auto& termChar : row) {
+                char c = termChar.value;
+                if (Characters.count(c)) {
+                    Character ch = Characters[c];
 
-                GLfloat xpos = x + ch.bearing.x();
-                GLfloat ypos = y - ch.size.height() + ch.bearing.y(); // Adjust ypos for baseline
+                    GLfloat xpos = current_x + ch.bearing.x();
+                    GLfloat ypos = current_y + ch.bearing.y(); 
 
-                GLfloat w = ch.size.width();
-                GLfloat h = ch.size.height();
+                    GLfloat w = ch.size.width();
+                    GLfloat h = ch.size.height();
 
-                // Update VBO for each character
-                GLfloat vertices[6][4] = {
-                    { xpos,     ypos + h,   0.0f, 0.0f },
-                    { xpos,     ypos,       0.0f, 1.0f },
-                    { xpos + w, ypos,       1.0f, 1.0f },
+                    // Update VBO for each character
+                    GLfloat vertices[6][4] = {
+                        { xpos,     ypos + h,   0.0f, 0.0f },
+                        { xpos,     ypos,       0.0f, 1.0f },
+                        { xpos + w, ypos,       1.0f, 1.0f },
 
-                    { xpos,     ypos + h,   0.0f, 0.0f },
-                    { xpos + w, ypos,       1.0f, 1.0f },
-                    { xpos + w, ypos + h,   1.0f, 0.0f }
-                };
+                        { xpos,     ypos + h,   0.0f, 0.0f },
+                        { xpos + w, ypos,       1.0f, 1.0f },
+                        { xpos + w, ypos + h,   1.0f, 0.0f }
+                    };
 
-                // Render glyph texture over quad
-                glBindTexture(GL_TEXTURE_2D, ch.textureID);
-                // Update content of VBO memory
-                glBindBuffer(GL_ARRAY_BUFFER, VBO);
-                glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
-                glBindBuffer(GL_ARRAY_BUFFER, 0);
-                // Render quad
-                glDrawArrays(GL_TRIANGLES, 0, 6);
+                    // Render glyph texture over quad
+                    glBindTexture(GL_TEXTURE_2D, ch.textureID);
+                    // Update content of VBO memory
+                    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+                    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+                    glBindBuffer(GL_ARRAY_BUFFER, 0);
+                    // Render quad
+                    glDrawArrays(GL_TRIANGLES, 0, 6);
 
-                // Now advance cursors for next glyph (note that advance is number of 1/64 pixels)
-                x += ch.advance;
+                    // Now advance cursors for next glyph (note that advance is number of 1/64 pixels)
+                    current_x += (ch.advance);
+                } else {
+                    // If character not in atlas, just advance by average width
+                    current_x += (ft_face->glyph->advance.x >> 6);
+                }
             }
         }
 
