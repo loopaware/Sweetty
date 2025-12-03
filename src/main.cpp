@@ -25,8 +25,11 @@ struct Character {
 
 class TerminalWidget : public QOpenGLWidget, protected QOpenGLFunctions_3_0
 {
+    Q_OBJECT // Required for signals and slots
+    Q_OBJECT // Required for signals and slots
+
 public:
-    TerminalWidget(QWidget *parent = nullptr) : QOpenGLWidget(parent), ft_library(nullptr), ft_face(nullptr), fontAtlasTexture(0), shaderProgram(0), VAO(0), VBO(0), terminalBuffer(nullptr), ptyProcess(nullptr)
+    TerminalWidget(QWidget *parent = nullptr) : QOpenGLWidget(parent), ft_library(nullptr), ft_face(nullptr), fontAtlasTexture(0), shaderProgram(0), VAO(0), VBO(0), terminalBuffer(nullptr), ptyProcess(nullptr), ptyNotifier(nullptr)
     {
         // Request OpenGL ES 3.0 context
         QSurfaceFormat format;
@@ -66,6 +69,9 @@ public:
         }
         if (ptyProcess) {
             delete ptyProcess;
+        }
+        if (ptyNotifier) {
+            delete ptyNotifier;
         }
     }
 
@@ -302,10 +308,10 @@ protected:
         terminalBuffer->write("With FreeType and HarfBuzz.");
         
         // --- PtyProcess Setup ---
-        ptyProcess = new PtyProcess(terminalBuffer);
-        if (!ptyProcess->startShell("/bin/bash")) {
-            std::cerr << "Failed to start shell!" << std::endl;
-            // Handle error, maybe quit application
+        // --- QSocketNotifier for Pty output ---
+        if (ptyProcess->getMasterFd() != -1) {
+            ptyNotifier = new QSocketNotifier(ptyProcess->getMasterFd(), QSocketNotifier::Read, this);
+            connect(ptyNotifier, &QSocketNotifier::activated, this, &TerminalWidget::onPtyReadyRead);
         }
     }
 
@@ -420,6 +426,15 @@ protected: // Add keyPressEvent here
         }
         QOpenGLWidget::keyPressEvent(event); // Call base class implementation
     }
+
+private slots: // Add slots here
+    void onPtyReadyRead()
+    {
+        if (ptyProcess) {
+            ptyProcess->readOutput();
+            update(); // Request a repaint
+        }
+    }
 private:
     FT_Library ft_library;
     FT_Face ft_face;
@@ -429,6 +444,10 @@ private:
     GLuint shaderProgram;
     GLuint VAO, VBO;
     TerminalBuffer* terminalBuffer; // Member for TerminalBuffer
+    PtyProcess* ptyProcess; // Member for PtyProcess
+    QSocketNotifier* ptyNotifier; // Member for QSocketNotifier
+    PtyProcess* ptyProcess; // Member for PtyProcess
+    QSocketNotifier* ptyNotifier; // Member for QSocketNotifier
 }; // Missing closing brace for TerminalWidget class
 
 
