@@ -275,6 +275,26 @@ protected:
         glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glBindVertexArray(0);
+
+        // --- Terminal Buffer Setup ---
+        // Calculate terminal dimensions based on font metrics and widget size
+        // For simplicity, let's assume average character width and height
+        int charWidth = (ft_face->glyph->advance.x >> 6); // Average width for monospaced font
+        int charHeight = ft_face->size->metrics.height >> 6; // Average height including ascender/descender
+        if (charWidth == 0) charWidth = 1; // Avoid division by zero
+        if (charHeight == 0) charHeight = 1;
+
+        int cols = width() / charWidth;
+        int rows = height() / charHeight;
+
+        terminalBuffer = new TerminalBuffer(cols, rows);
+        terminalBuffer->write("Hello, Sweetty GL!");
+        terminalBuffer->newLine();
+        terminalBuffer->write("This is a terminal emulator.");
+        terminalBuffer->newLine();
+        terminalBuffer->write("It's GPU accelerated!");
+        terminalBuffer->newLine();
+        terminalBuffer->write("With FreeType and HarfBuzz.");
     }
 
     void resizeGL(int w, int h) override
