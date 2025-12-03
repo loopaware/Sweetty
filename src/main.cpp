@@ -13,6 +13,7 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #include "terminal_buffer.h" // Include TerminalBuffer header
+#include "pty_process.h" // Include PtyProcess header
 #include <QKeyEvent> // Include QKeyEvent
 
 struct Character {
@@ -25,7 +26,7 @@ struct Character {
 class TerminalWidget : public QOpenGLWidget, protected QOpenGLFunctions_3_0
 {
 public:
-    TerminalWidget(QWidget *parent = nullptr) : QOpenGLWidget(parent), ft_library(nullptr), ft_face(nullptr), fontAtlasTexture(0), shaderProgram(0), VAO(0), VBO(0), terminalBuffer(nullptr)
+    TerminalWidget(QWidget *parent = nullptr) : QOpenGLWidget(parent), ft_library(nullptr), ft_face(nullptr), fontAtlasTexture(0), shaderProgram(0), VAO(0), VBO(0), terminalBuffer(nullptr), ptyProcess(nullptr)
     {
         // Request OpenGL ES 3.0 context
         QSurfaceFormat format;
@@ -62,6 +63,9 @@ public:
         }
         if (terminalBuffer) {
             delete terminalBuffer;
+        }
+        if (ptyProcess) {
+            delete ptyProcess;
         }
     }
 
