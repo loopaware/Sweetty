@@ -300,6 +300,13 @@ protected:
         terminalBuffer->write("It's GPU accelerated!");
         terminalBuffer->newLine();
         terminalBuffer->write("With FreeType and HarfBuzz.");
+        
+        // --- PtyProcess Setup ---
+        ptyProcess = new PtyProcess(terminalBuffer);
+        if (!ptyProcess->startShell("/bin/bash")) {
+            std::cerr << "Failed to start shell!" << std::endl;
+            // Handle error, maybe quit application
+        }
     }
 
     void resizeGL(int w, int h) override
@@ -317,6 +324,9 @@ protected:
             int newRows = h / charHeight;
 
             terminalBuffer->resize(newCols, newRows);
+            if (ptyProcess) {
+                ptyProcess->resize(newCols, newRows);
+            }
         }
     }
 
@@ -395,14 +405,18 @@ protected:
 protected: // Add keyPressEvent here
     void keyPressEvent(QKeyEvent *event) override
     {
-        if (event->text().length() > 0) { // Check if it's a printable character
-            char keyChar = event->text().at(0).toLatin1();
-            if (keyChar >= 32 && keyChar < 127) { // Only process basic ASCII printable characters for now
-                if (terminalBuffer) {
-                    terminalBuffer->write(keyChar);
-                    update(); // Request a repaint
-                }
+        if (ptyProcess) {
+            // Handle special keys
+            if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) {
+                ptyProcess->write("\n");
+            } else if (event->key() == Qt::Key_Backspace) {
+                ptyProcess->write("\b");
+            } else if (event->key() == Qt::Key_Tab) {
+                ptyProcess->write("\t");
+            } else if (event->text().length() > 0) { // Check if it's a printable character
+                ptyProcess->write(event->text().toStdString());
             }
+            update(); // Request a repaint
         }
         QOpenGLWidget::keyPressEvent(event); // Call base class implementation
     }
