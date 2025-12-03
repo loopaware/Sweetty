@@ -4,14 +4,22 @@
 #include <QSurfaceFormat>
 #include <QTimer>
 #include <iostream>
+#include <map>
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
+struct Character {
+    GLuint     textureID;  // ID handle of the glyph texture
+    QSize      size;       // Size of glyph
+    QPoint     bearing;    // Offset from baseline to left/top of glyph
+    GLuint     advance;    // Offset to advance to next glyph
+};
+
 class TerminalWidget : public QOpenGLWidget, protected QOpenGLFunctions_3_0
 {
 public:
-    TerminalWidget(QWidget *parent = nullptr) : QOpenGLWidget(parent), ft_library(nullptr), ft_face(nullptr)
+    TerminalWidget(QWidget *parent = nullptr) : QOpenGLWidget(parent), ft_library(nullptr), ft_face(nullptr), fontAtlasTexture(0)
     {
         // Request OpenGL ES 3.0 context
         QSurfaceFormat format;
@@ -28,6 +36,9 @@ public:
 
     ~TerminalWidget()
     {
+        if (fontAtlasTexture) {
+            glDeleteTextures(1, &fontAtlasTexture);
+        }
         if (ft_face) {
             FT_Done_Face(ft_face);
         }
@@ -79,6 +90,86 @@ protected:
             return;
         }
         std::cout << "FreeType initialized and font loaded: " << font_path << std::endl;
+
+        // --- Glyph Texture Atlas Generation ---
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // Disable byte-alignment restriction
+
+        glGenTextures(1, &fontAtlasTexture);
+        glBindTexture(GL_TEXTURE_2D, fontAtlasTexture);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        // Estimate atlas size (rough estimate, can be improved with packing algorithm)
+        // A common size for text atlases might be 1024x1024 or 2048x2048.
+        // For now, let's just make it big enough for typical ASCII glyphs.
+        // Assuming ~50px height per glyph and ~100 glyphs, 1024x1024 might be enough.
+        int atlasWidth = 1024;
+        int atlasHeight = 1024;
+        // Allocate texture on GPU
+        glTexImage2D(
+            GL_TEXTURE_2D,
+            0,
+            GL_R8, // Single channel for grayscale glyphs (alpha only)
+            atlasWidth,
+            atlasHeight,
+            0,
+            GL_RED,
+            GL_UNSIGNED_BYTE,
+            nullptr
+        );
+
+        int xOffset = 0;
+        int yOffset = 0;
+        int rowHeight = 0;
+
+        for (unsigned char c = 32; c < 128; c++) // ASCII characters 32-127
+        {
+            if (FT_Load_Char(ft_face, c, FT_LOAD_RENDER))
+            {
+                std::cerr << "FreeType: Failed to load Glyph for character: " << c << std::endl;
+                continue;
+            }
+
+            if (xOffset + ft_face->glyph->bitmap.width > atlasWidth) {
+                xOffset = 0;
+                yOffset += rowHeight;
+                rowHeight = 0;
+            }
+
+            if (yOffset + ft_face->glyph->bitmap.rows > atlasHeight) {
+                std::cerr << "Glyph Atlas: Not enough space in texture atlas for character: " << c << std::endl;
+                // This is a critical error, needs handling or a larger atlas
+                break;
+            }
+
+            glTexSubImage2D(
+                GL_TEXTURE_2D,
+                0,
+                xOffset,
+                yOffset,
+                ft_face->glyph->bitmap.width,
+                ft_face->glyph->bitmap.rows,
+                GL_RED,
+                GL_UNSIGNED_BYTE,
+                ft_face->glyph->bitmap.buffer
+            );
+
+            Character character = {
+                fontAtlasTexture,
+                QSize(ft_face->glyph->bitmap.width, ft_face->glyph->bitmap.rows),
+                QPoint(ft_face->glyph->bitmap_left, ft_face->glyph->bitmap_top),
+                static_cast<GLuint>(ft_face->glyph->advance.x >> 6)
+            };
+            Characters.insert(std::pair<char, Character>(c, character));
+
+            xOffset += ft_face->glyph->bitmap.width;
+            rowHeight = std::max(rowHeight, static_cast<int>(ft_face->glyph->bitmap.rows));
+        }
+
+        std::cout << "Glyph Texture Atlas generated for ASCII characters." << std::endl;
     }
 
     void resizeGL(int w, int h) override
@@ -95,6 +186,8 @@ protected:
 private:
     FT_Library ft_library;
     FT_Face ft_face;
+    GLuint fontAtlasTexture;
+    std::map<char, Character> Characters;
 };
 
 int main(int argc, char *argv[])
