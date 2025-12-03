@@ -12,6 +12,7 @@
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
+#include "terminal_buffer.h" // Include TerminalBuffer header
 
 struct Character {
     GLuint     textureID;  // ID handle of the glyph texture
