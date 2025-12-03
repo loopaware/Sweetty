@@ -70,4 +70,5 @@ endif()
 
 target_include_directories(sweetty-gl PRIVATE
     ${glm_extern_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR} # Add current directory for local headers
 )
