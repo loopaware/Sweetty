@@ -1,6 +1,14 @@
-cmake_minimum_required(VERSION 3.10)
-
+cmake_minimum_required(VERSION 3.15)
 project(sweetty-gl)
+
+# Load the Conan toolchain file
+include(${CMAKE_BINARY_DIR}/conan_toolchain.cmake)
+
+find_program(CCACHE_FOUND ccache)
+if(CCACHE_FOUND)
+    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCACHE_FOUND}")
+    message(STATUS "Using ccache to accelerate compilation.")
+endif()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
@@ -9,40 +17,8 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
-include(FetchContent)
-
-# --- Find or Fetch ZLIB ---
-find_package(ZLIB QUIET)
-if (NOT ZLIB_FOUND)
-    FetchContent_Declare(
-        zlib_extern
-        GIT_REPOSITORY https://github.com/madler/zlib.git
-        GIT_TAG        v1.2.13 # Use a specific version or commit
-    )
-    FetchContent_MakeAvailable(zlib_extern)
-    # Ensure zlib target is available if fetched
-    add_library(ZLIB::zlib ALIAS zlib_extern)
-endif()
-
-# --- Fetch FreeType ---
-# FreeType has its own CMakeLists.txt and should build itself
-FetchContent_Declare(
-    freetype_extern
-    GIT_REPOSITORY https://gitlab.freedesktop.org/freetype/freetype.git
-    GIT_TAG        VER-2-13-2 # Use a specific version or commit
-    # Freetype's CMake can try to find dependencies like zlib, bzip2, png
-    # Ensure zlib is available to it via system or fetched externally
-)
-FetchContent_MakeAvailable(freetype_extern)
-
-FetchContent_Declare(
-    harfbuzz_extern
-    GIT_REPOSITORY https://github.com/harfbuzz/harfbuzz.git
-    GIT_TAG        8.3.0 # Use a specific version or commit
-)
-FetchContent_MakeAvailable(harfbuzz_extern)
-
 # --- Fetch GLM ---
+include(FetchContent)
 FetchContent_Declare(
     glm_extern
     GIT_REPOSITORY https://github.com/g-truc/glm.git
@@ -50,28 +26,32 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(glm_extern)
 
-
 find_package(Qt5 5.15 COMPONENTS Widgets OpenGL REQUIRED)
+find_package(ZLIB REQUIRED)
+find_package(Freetype REQUIRED)
+find_package(harfbuzz REQUIRED)
 
-add_library(TerminalBuffer STATIC terminal_buffer.cpp) # Create static library
-
-add_executable(sweetty-gl src/main.cpp pty_process.cpp)
+add_executable(sweetty-gl src/main.cpp src/pty_process.cpp src/font_manager.cpp src/terminal_buffer.cpp src/ansi_parser.cpp src/terminal_widget.cpp src/renderer.cpp)
 
 target_link_libraries(sweetty-gl PRIVATE
     Qt5::Widgets
     Qt5::OpenGL
-    freetype
-    harfbuzz
-    TerminalBuffer # Link to the static library
+    Freetype::Freetype
+    harfbuzz::harfbuzz
+    ZLIB::ZLIB
 )
-
-if (ZLIB_FOUND)
-    target_link_libraries(sweetty-gl PRIVATE ZLIB::ZLIB)
-else()
-    target_link_libraries(sweetty-gl PRIVATE zlib_extern)
-endif()
 
 target_include_directories(sweetty-gl PRIVATE
     ${glm_extern_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR} # Add current directory for local headers
+    src # Add the project's src/ directory for local headers
 )
+
+enable_testing()
+
+find_package(GTest REQUIRED)
+
+add_executable(unit_tests test/main.cpp)
+target_link_libraries(unit_tests PRIVATE GTest::gtest_main)
+
+include(GoogleTest)
+gtest_discover_tests(unit_tests)

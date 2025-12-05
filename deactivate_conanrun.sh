@@ -1,0 +1,1 @@
+. "/home/fredrick/vscodium-workspace/sweetty-gl/deactivate_conanrunenv-release-x86_64.sh"

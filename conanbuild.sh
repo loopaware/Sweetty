@@ -1,0 +1,1 @@
+. "/home/fredrick/vscodium-workspace/sweetty-gl/conanbuildenv-release-x86_64.sh"
